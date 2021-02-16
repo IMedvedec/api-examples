@@ -12,19 +12,22 @@ import (
 	"github.com/imedvedec/api-examples/api/builtin"
 )
 
+// API server addresses.
 const (
 	builtinAPIaddr string = "localhost:8080"
 )
 
+// Server parametrisation.
 const (
-	shutdownDeadlineInSeconds int = 5
+	shutdownDeadline time.Duration = 5 * time.Second
 )
 
+// Run represents the application starting point.
 func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	signals := make(chan os.Signal, 1)
+	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt, os.Kill)
 	go func() {
 		sig := <-signals
@@ -36,6 +39,8 @@ func Run() {
 	log.Println("Application finished")
 }
 
+// serverLifeCycle is a helper function which manages API server
+// setup, start and graceful shutdown.
 func serverLifeCycle(ctx context.Context) {
 	server := builtin.New(builtinAPIaddr)
 
@@ -51,7 +56,7 @@ func serverLifeCycle(ctx context.Context) {
 
 	log.Println(fmt.Sprintf("Builtin API has been stopped"))
 
-	ctxShutdown, cancel := context.WithTimeout(context.Background(), time.Duration(shutdownDeadlineInSeconds)*time.Second)
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), shutdownDeadline)
 	defer cancel()
 
 	if err := server.Shutdown(ctxShutdown); err != nil {
