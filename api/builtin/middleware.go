@@ -6,6 +6,7 @@ import (
 	"net/http"
 )
 
+//preorderMiddleware is a preorder middleware example.
 func preorderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("preorder middleware execution!")
@@ -13,6 +14,7 @@ func preorderMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+//postorderMiddleware is a postorder middleware example.
 func postorderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
@@ -20,6 +22,7 @@ func postorderMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+//clientJSONCheck checks that the client can accept JSON responses.
 func clientJSONCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headerValue := r.Header.Get(accept)
