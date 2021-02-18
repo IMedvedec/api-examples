@@ -2,6 +2,7 @@ package builtin
 
 const (
 	contentType string = "Content-Type"
+	accept      string = "Accept"
 )
 
 const (
