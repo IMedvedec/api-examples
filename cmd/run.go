@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/imedvedec/api-examples/api/builtin"
+	"github.com/rs/zerolog"
 )
 
 // API server addresses.
@@ -22,8 +22,21 @@ const (
 	shutdownDeadline time.Duration = 5 * time.Second
 )
 
+type application struct {
+	logger *zerolog.Logger
+}
+
+func New() *application {
+	consoleLogger := zerolog.NewConsoleWriter()
+	logger := zerolog.New(consoleLogger).With().Timestamp().Logger()
+
+	return &application{
+		logger: &logger,
+	}
+}
+
 // Run represents the application starting point.
-func Run() {
+func (app *application) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -31,17 +44,18 @@ func Run() {
 	signal.Notify(signals, os.Interrupt, os.Kill)
 	go func() {
 		sig := <-signals
-		log.Printf("OS signal happened: %v\n", sig)
+		app.logger.Info().Msg(fmt.Sprintf("OS signal happened: %v", sig))
 		cancel()
 	}()
 
-	serverLifeCycle(ctx)
-	log.Println("Application finished")
+	app.serverLifeCycle(ctx)
+
+	app.logger.Info().Msg(fmt.Sprintf("Application has finished successfully"))
 }
 
 // serverLifeCycle is a helper function which manages API server
 // setup, start and graceful shutdown.
-func serverLifeCycle(ctx context.Context) {
+func (app *application) serverLifeCycle(ctx context.Context) {
 	server := builtin.New(builtinAPIaddr)
 
 	go func() {
@@ -49,18 +63,16 @@ func serverLifeCycle(ctx context.Context) {
 			panic(fmt.Sprintf("Error happened on builtinAPI listen: %v", err))
 		}
 	}()
-
-	log.Println(fmt.Sprintf("Builtin API started on: %s", builtinAPIaddr))
+	app.logger.Info().Msg(fmt.Sprintf("Builtin API started on: '%s'", builtinAPIaddr))
 
 	<-ctx.Done()
 
-	log.Println(fmt.Sprintf("Builtin API has been stopped"))
+	app.logger.Info().Msg(fmt.Sprintf("Builtin API ('%s') has been stopped", builtinAPIaddr))
 
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), shutdownDeadline)
 	defer cancel()
 
 	if err := server.Shutdown(ctxShutdown); err != nil {
-		panic(fmt.Sprintf("Error happened on bultinAPI shutdown: %v", err))
+		app.logger.Panic().Msg(fmt.Sprintf("Error has happened on Builtin API ('%s') shutdown: %v", builtinAPIaddr, err))
 	}
-
 }

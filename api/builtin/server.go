@@ -29,7 +29,6 @@ func New(addr string) api.Server {
 
 	consoleLogger := zerolog.NewConsoleWriter()
 	logger := zerolog.New(consoleLogger).With().Timestamp().Logger()
-	logger.Info().Msg("Logger setup successful for builtinServer!")
 
 	builtinServer := builtinServer{
 		logger: &logger,
