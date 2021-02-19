@@ -3,9 +3,10 @@ package builtin
 import "net/http"
 
 const (
-	cookieMaxAge int = 1000
+	cookieMaxAge int = 180
 )
 
+// domainCookieSetHandler creates a handler that sets a simple cookie.
 func domainCookieSetHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		domainCookie := http.Cookie{
@@ -20,6 +21,7 @@ func domainCookieSetHandler(next http.Handler) http.Handler {
 	})
 }
 
+// domainAndPathCookieSetHandler creates a handler that sets a parametrized cookie.
 func domainAndPathCookieSetHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie := http.Cookie{
