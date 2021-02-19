@@ -1,10 +1,19 @@
 package builtin
 
 import (
+	"context"
 	"net/http"
+
+	"github.com/imedvedec/api-examples/api"
+	"github.com/rs/zerolog"
 )
 
-func New(addr string) *http.Server {
+type builtinServer struct {
+	logger *zerolog.Logger
+	server *http.Server
+}
+
+func New(addr string) api.Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/hello", helloHandler)
@@ -18,5 +27,22 @@ func New(addr string) *http.Server {
 		Handler: mux,
 	}
 
-	return &server
+	consoleLogger := zerolog.NewConsoleWriter()
+	logger := zerolog.New(consoleLogger).With().Timestamp().Logger()
+	logger.Info().Msg("Logger setup successful for builtinServer!")
+
+	builtinServer := builtinServer{
+		logger: &logger,
+		server: &server,
+	}
+
+	return &builtinServer
+}
+
+func (bs *builtinServer) ListenAndServe() error {
+	return bs.server.ListenAndServe()
+}
+
+func (bs *builtinServer) Shutdown(ctx context.Context) error {
+	return bs.server.Shutdown(ctx)
 }
