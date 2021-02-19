@@ -8,11 +8,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// builtinServer represents a builtin server with its dependencies.
 type builtinServer struct {
 	logger *zerolog.Logger
 	server *http.Server
 }
 
+// New is an builtin api server constructor.
 func New(addr string) api.Server {
 	mux := http.NewServeMux()
 
@@ -38,10 +40,12 @@ func New(addr string) api.Server {
 	return &builtinServer
 }
 
+// ListenAndServe imeplements the api.Server.ListenAndServe method.
 func (bs *builtinServer) ListenAndServe() error {
 	return bs.server.ListenAndServe()
 }
 
+// Shutdown imeplements the api.Server.Shutdown method.
 func (bs *builtinServer) Shutdown(ctx context.Context) error {
 	return bs.server.Shutdown(ctx)
 }

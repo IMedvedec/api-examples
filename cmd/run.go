@@ -22,10 +22,12 @@ const (
 	shutdownDeadline time.Duration = 5 * time.Second
 )
 
+// application represents the main application with dependencies.
 type application struct {
 	logger *zerolog.Logger
 }
 
+// New is an application constructor.
 func New() *application {
 	consoleLogger := zerolog.NewConsoleWriter()
 	logger := zerolog.New(consoleLogger).With().Timestamp().Logger()
