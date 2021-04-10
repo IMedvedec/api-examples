@@ -6,15 +6,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
+	"github.com/imedvedec/api-examples/api"
 	"github.com/imedvedec/api-examples/api/builtin"
+	"github.com/imedvedec/api-examples/api/grpc"
 	"github.com/rs/zerolog"
 )
 
 // API server addresses.
 const (
 	builtinAPIaddr string = "localhost:8080"
+	grpcAPIaddr    string = "localhost:8081"
 )
 
 // Server parametrisation.
@@ -43,7 +48,7 @@ func (app *application) Run() {
 	defer cancel()
 
 	signals := make(chan os.Signal)
-	signal.Notify(signals, os.Interrupt, os.Kill)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		sig := <-signals
 		app.logger.Info().Msg(fmt.Sprintf("OS signal happened: %v", sig))
@@ -52,20 +57,26 @@ func (app *application) Run() {
 
 	app.serverLifeCycle(ctx)
 
-	app.logger.Info().Msg(fmt.Sprintf("Application has finished successfully"))
+	app.logger.Info().Msg("Application has finished successfully")
 }
 
 // serverLifeCycle is a helper function which manages API server
 // setup, start and graceful shutdown.
 func (app *application) serverLifeCycle(ctx context.Context) {
-	server := builtin.New(builtinAPIaddr)
+	servers := []api.Server{
+		builtin.New(builtinAPIaddr),
+		grpc.New(grpcAPIaddr),
+	}
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("Error happened on builtinAPI listen: %v", err))
-		}
-	}()
-	app.logger.Info().Msg(fmt.Sprintf("Builtin API started on: '%s'", builtinAPIaddr))
+	for _, s := range servers {
+		go func(s api.Server) {
+			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				panic(fmt.Sprintf("Error happened on server listen: %v", err))
+			}
+
+			//app.logger.Info().Msg(fmt.Sprintf("API started on: '%s'", builtinAPIaddr))
+		}(s)
+	}
 
 	<-ctx.Done()
 
@@ -74,7 +85,15 @@ func (app *application) serverLifeCycle(ctx context.Context) {
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), shutdownDeadline)
 	defer cancel()
 
-	if err := server.Shutdown(ctxShutdown); err != nil {
-		app.logger.Panic().Msg(fmt.Sprintf("Error has happened on Builtin API ('%s') shutdown: %v", builtinAPIaddr, err))
+	shutdownWG := sync.WaitGroup{}
+	for _, s := range servers {
+		shutdownWG.Add(1)
+		go func(s api.Server) {
+			if err := s.Shutdown(ctxShutdown); err != nil {
+				//app.logger.Panic().Msg(fmt.Sprintf("Error has happened on server shutdown: %v", builtinAPIaddr, err))
+			}
+			shutdownWG.Done()
+		}(s)
 	}
+	shutdownWG.Wait()
 }

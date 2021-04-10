@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package build;
+option go_package = "github.com/imedvedec/api-examples/grpc/build";
+
+import "google/api/annotations.proto";
+
+service Greeting {
+    rpc Greet(GreetingRequest) returns (GreetingResponse) {
+        option (google.api.http) = {
+            post: "/grpc/greet"
+        };
+    }
+}
+
+message GreetingRequest {
+    string name = 1;
+}
+
+message GreetingResponse {
+    string message = 1;
+}
