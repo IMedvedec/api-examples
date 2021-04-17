@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/imedvedec/api-examples/api"
 	"github.com/imedvedec/api-examples/api/grpc/build"
 	"github.com/imedvedec/api-examples/api/grpc/greeting"
+	"github.com/imedvedec/api-examples/cert"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 )
@@ -33,9 +35,17 @@ func New(addr string) api.Server {
 		log.Fatalf("api/grpc/New: greeting handler registration has failed, %v", err)
 	}
 
+	tlsCertificate, err := tls.X509KeyPair(cert.ServerCertificate, cert.ServerPrivateKey)
+	if err != nil {
+		log.Fatalf("api/grpc/New: tls cetificate setup has failed, %v", err)
+	}
+
 	hs := http.Server{
 		Addr:    addr,
-		Handler: gs,
+		Handler: mux,
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{tlsCertificate},
+		},
 	}
 
 	consoleLogger := zerolog.NewConsoleWriter()
@@ -50,7 +60,7 @@ func New(addr string) api.Server {
 }
 
 func (gs *grpcServer) ListenAndServe() error {
-	return gs.server.ListenAndServe()
+	return gs.server.ListenAndServeTLS("", "")
 }
 
 func (gs *grpcServer) Shutdown(ctx context.Context) error {

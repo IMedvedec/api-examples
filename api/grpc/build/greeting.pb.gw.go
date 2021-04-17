@@ -66,7 +66,7 @@ func local_request_Greeting_Greet_0(ctx context.Context, marshaler runtime.Marsh
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
 func RegisterGreetingHandlerServer(ctx context.Context, mux *runtime.ServeMux, server GreetingServer) error {
 
-	mux.Handle("POST", pattern_Greeting_Greet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Greeting_Greet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -127,7 +127,7 @@ func RegisterGreetingHandler(ctx context.Context, mux *runtime.ServeMux, conn *g
 // "GreetingClient" to call the correct interceptors.
 func RegisterGreetingHandlerClient(ctx context.Context, mux *runtime.ServeMux, client GreetingClient) error {
 
-	mux.Handle("POST", pattern_Greeting_Greet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Greeting_Greet_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
