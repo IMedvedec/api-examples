@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -16,25 +17,13 @@ import (
 )
 
 type grpcServer struct {
-	logger *zerolog.Logger
-	server *http.Server
+	logger     *zerolog.Logger
+	restServer *http.Server
+	grpcServer *grpc.Server
 }
 
 func New(addr string) api.Server {
 	ctx := context.Background()
-
-	gs := grpc.NewServer()
-	build.RegisterGreetingServer(gs, greeting.New())
-
-	lis, err := net.Listen("tcp", net.JoinHostPort("localhost", "9999"))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	go func() {
-		if err := gs.Serve(lis); err != nil {
-			log.Fatalln(err)
-		}
-	}()
 
 	mux := runtime.NewServeMux(
 		runtime.WithMarshalerOption("*", &runtime.JSONPb{}),
@@ -73,17 +62,69 @@ func New(addr string) api.Server {
 	logger := zerolog.New(consoleLogger).With().Timestamp().Logger()
 
 	grpcServer := grpcServer{
-		logger: &logger,
-		server: &hs,
+		logger:     &logger,
+		restServer: &hs,
+	}
+	if err := grpcServer.startGRPCServer("localhost", "9999"); err != nil {
+		grpcServer.logger.Error().Msgf("api/grpc/New: %v", err)
 	}
 
 	return &grpcServer
 }
 
 func (gs *grpcServer) ListenAndServe() error {
-	return gs.server.ListenAndServe()
+	return gs.restServer.ListenAndServe()
 }
 
 func (gs *grpcServer) Shutdown(ctx context.Context) error {
-	return gs.server.Shutdown(ctx)
+	err := gs.restServer.Shutdown(ctx)
+	if err != nil {
+		gs.logger.Err(err).Msgf("api/grpc/Shutdown: rest server shutdown error, %w", err)
+	}
+
+	grpcCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err = gs.stopGRPCServer(grpcCtx)
+	if err != nil {
+		gs.logger.Err(err).Msgf("api/grpc/Shutdown: grpc server shutdown error, %w", err)
+	}
+
+	return err
+}
+
+func (gs *grpcServer) startGRPCServer(host, port string) error {
+	gs.grpcServer = grpc.NewServer()
+	build.RegisterGreetingServer(gs.grpcServer, greeting.New())
+
+	lis, err := net.Listen("tcp", net.JoinHostPort(host, port))
+	if err != nil {
+		return fmt.Errorf("api/grpc/startGRPCServer: starting grpc server on host %s and port %s has failed: %w",
+			host, port, err)
+	}
+
+	go func() {
+		if err := gs.grpcServer.Serve(lis); err != nil {
+			gs.logger.Error().Msgf("api/grpc/startGRPCServer: grpc server serve has failed: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+func (gs *grpcServer) stopGRPCServer(ctx context.Context) error {
+	ok := make(chan struct{})
+
+	go func() {
+		gs.grpcServer.GracefulStop()
+		close(ok)
+	}()
+
+	select {
+	case <-ok:
+		return nil
+	case <-ctx.Done():
+		gs.grpcServer.Stop()
+		return ctx.Err()
+	}
 }
